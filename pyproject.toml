@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "ls-lambda"
+version = "0.1.0"
+description = "Lambda Function for .docx to .pdf conversion"
+authors = ["π <pi@pipad.org>"]
+license = "Proprietary (leafsheets.com)"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

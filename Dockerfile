@@ -23,7 +23,9 @@ RUN apk add --no-cache \
     libexecinfo-dev \
     make \
     cmake \
-    libcurl
+    libcurl \
+    libressl-dev \
+    libffi-dev
 
 # Include global args in this stage of the build
 ARG FUNCTION_DIR
@@ -49,6 +51,16 @@ ARG FUNCTION_DIR
 
 # Set working directory to function root directory
 WORKDIR ${FUNCTION_DIR}
+
+COPY pyproject.toml .
+
+RUN pip3 install poetry
+
+RUN poetry config virtualenvs.create false
+
+RUN poetry install --no-dev
+
+RUN [ "poetry", "shell" ]
 
 # Copy in the built dependencies
 COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
