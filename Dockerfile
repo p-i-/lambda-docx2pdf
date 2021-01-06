@@ -11,13 +11,10 @@ FROM python:${RUNTIME_VERSION}-alpine${DISTRO_VERSION} AS python-alpine
 # Install GCC (Alpine uses musl but we compile and link dependencies with GCC)
 RUN apk add --no-cache \
     libstdc++
+    # gcc
 
-# Need these for poetry to work: https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
-RUN apk add --no-cache \
-    gcc \
-    libffi-dev \
-    musl-dev
-    # postgresql-dev
+# https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
+RUN apk add --no-cache gcc libffi-dev musl-dev postgresql-dev
 
 # Stage 2 - build function and dependencies
 FROM python-alpine AS build-image
@@ -31,6 +28,11 @@ RUN apk add --no-cache \
     make \
     cmake \
     libcurl
+
+RUN apk add --no-cache \ 
+    gcc \
+    libffi-dev \
+    musl-dev
 
 # Include global args in this stage of the build
 ARG FUNCTION_DIR
@@ -57,15 +59,24 @@ ARG FUNCTION_DIR
 # Set working directory to function root directory
 WORKDIR ${FUNCTION_DIR}
 
-# Ordering from https://stackoverflow.com/a/54830677/435129
-RUN pip install poetry
-# COPY poetry.lock pyproject.toml /${FUNCTION_DIR}/
-COPY pyproject.toml /${FUNCTION_DIR}/
-RUN poetry config virtualenvs.create false
-RUN poetry install --no-interaction
-# ^ Can use --no-dev
 
-RUN poetry shell
+RUN pip install poetry
+
+COPY poetry.lock pyproject.toml /app/
+
+RUN poetry config virtualenvs.create false
+RUN poetry install --no-interaction  # --no-dev
+
+
+
+# COPY pyproject.toml .
+
+# RUN pip3 install poetry
+
+# RUN poetry config virtualenvs.create false
+# RUN poetry install --no-dev
+
+RUN [ "poetry", "shell" ]
 
 # Copy in the built dependencies
 COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
@@ -76,8 +87,8 @@ ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest
 RUN chmod 755 /usr/bin/aws-lambda-rie
 
 COPY entry.sh /
-RUN chmod +x entry.sh
+RUN ["chmod", "+x", "/entry.sh"]
 
-ENTRYPOINT [ "entry.sh" ]
+ENTRYPOINT [ "/entry.sh" ]
 
 CMD [ "app.handler" ]
