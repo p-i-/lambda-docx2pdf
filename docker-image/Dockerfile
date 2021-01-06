@@ -18,8 +18,7 @@ RUN apk add --no-cache \
     gcc \
     libffi-dev \
     musl-dev \
-    postgresql-dev
-
+    openssl-dev
 
 # Stage 2 - build function and dependencies
 FROM python-alpine AS build-image
@@ -58,12 +57,13 @@ ARG FUNCTION_DIR
 WORKDIR ${FUNCTION_DIR}
 
 # Copy handler function
-COPY app/* app/
+COPY app/app.py app.py
 
 # Sequencing is important here
 RUN pip install poetry
 
 COPY pyproject.toml ./
+
 # COPY poetry.lock /app/
 
 RUN poetry config virtualenvs.create false
@@ -72,15 +72,8 @@ RUN poetry install --no-interaction  # --no-dev
 # Copy in the built dependencies
 COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
 
-# # (Optional) Add Lambda Runtime Interface Emulator and use a script in the ENTRYPOINT for simpler local runs
-ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /usr/bin/aws-lambda-rie
-
-RUN chmod 755 /usr/bin/aws-lambda-rie
-
 COPY entry.sh /
 RUN chmod u+x /entry.sh
-
-RUN poetry shell
 
 ENTRYPOINT [ "/entry.sh" ]
 
