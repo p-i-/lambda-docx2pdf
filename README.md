@@ -1,4 +1,8 @@
-https://aws.amazon.com/blogs/aws/new-for-aws-lambda-container-image-support/
+TODO: Inspect https://github.com/wemake-services/wemake-django-template
+
+Mainly reading from https://aws.amazon.com/blogs/aws/new-for-aws-lambda-container-image-support/
+
+Taking Docker+Poetry tips from https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
 
 ```
 > docker build -t lambda-test .
@@ -46,7 +50,8 @@ Select the image and test it.
 
 Dev-cycle:
 ```
-> docker build -t lambda-test .
+> docker build -t lambda-test .  # --no-cache 
+
 > docker tag lambda-test:latest 795730031374.dkr.ecr.us-east-1.amazonaws.com/ls-lambda:latest
 > docker push 795730031374.dkr.ecr.us-east-1.amazonaws.com/ls-lambda:latest
 ```
@@ -66,4 +71,3 @@ aws lambda create-function \
     --handler my-function.handler \
 ```
 "repositoryArn": "arn:aws:ecr:us-east-1:795730031374:repository/ls-lambda",
-
