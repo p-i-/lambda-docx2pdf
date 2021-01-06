@@ -12,6 +12,13 @@ FROM python:${RUNTIME_VERSION}-alpine${DISTRO_VERSION} AS python-alpine
 RUN apk add --no-cache \
     libstdc++
 
+# Need these for poetry to work: https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
+RUN apk add --no-cache \
+    gcc \
+    libffi-dev \
+    musl-dev
+    # postgresql-dev
+
 # Stage 2 - build function and dependencies
 FROM python-alpine AS build-image
 # Install aws-lambda-cpp build dependencies
@@ -23,9 +30,7 @@ RUN apk add --no-cache \
     libexecinfo-dev \
     make \
     cmake \
-    libcurl \
-    libressl-dev \
-    libffi-dev
+    libcurl
 
 # Include global args in this stage of the build
 ARG FUNCTION_DIR
@@ -52,15 +57,15 @@ ARG FUNCTION_DIR
 # Set working directory to function root directory
 WORKDIR ${FUNCTION_DIR}
 
-COPY pyproject.toml .
-
-RUN pip3 install poetry
-
+# Ordering from https://stackoverflow.com/a/54830677/435129
+RUN pip install poetry
+# COPY poetry.lock pyproject.toml /${FUNCTION_DIR}/
+COPY pyproject.toml /${FUNCTION_DIR}/
 RUN poetry config virtualenvs.create false
+RUN poetry install --no-interaction
+# ^ Can use --no-dev
 
-RUN poetry install --no-dev
-
-RUN [ "poetry", "shell" ]
+RUN poetry shell
 
 # Copy in the built dependencies
 COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
@@ -71,8 +76,8 @@ ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest
 RUN chmod 755 /usr/bin/aws-lambda-rie
 
 COPY entry.sh /
-RUN ["chmod", "+x", "/entry.sh"]
+RUN chmod +x entry.sh
 
-ENTRYPOINT [ "/entry.sh" ]
+ENTRYPOINT [ "entry.sh" ]
 
 CMD [ "app.handler" ]
