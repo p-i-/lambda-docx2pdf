@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+PURPLE='\033[0;35m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+
+BOLD='\033[1m'
+RESET='\033[0m'  # No Color
+
+# - - - - - - -
+
 # change to script's containing folder, and store it
 cd `dirname "$0"`
 SCRIPT_ROOT=`pwd -P`
@@ -9,19 +21,32 @@ all_args="$@"
 cmd=$1
 env_type=${2:-local}  # (local) | staging | production
 
-AWS_ECR_REPO_NAME=ls-lambda
+AWS_ECR_REPO_NAME=ls-lambda-${env_type}
+AWS_LAMBDAFUNC_NAME=ls-lambdafunc-${env_type}
 DOCKER_IMAGE_TAG=ls-lambda-${env_type}
 DOCKER_RUNNING_CONTAINER_NAME=ls-lambda-${env_type}
 
-yellow "AWS_ECR_REPO_NAME: $AWS_ECR_REPO_NAME"
-yellow "DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG"
-yellow "DOCKER_RUNNING_CONTAINER_NAME: $DOCKER_RUNNING_CONTAINER_NAME"
+echo "AWS_ECR_REPO_NAME: $AWS_ECR_REPO_NAME"
+echo "AWS_LAMBDA_NAME: $AWS_LAMBDA_NAME"
+echo "DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG"
+echo "DOCKER_RUNNING_CONTAINER_NAME: $DOCKER_RUNNING_CONTAINER_NAME"
+
+# TODO: Fix this
+role_arn=arn:aws:iam::795730031374:role/service-role/ls-lambda-role-ka10n7ab
+
+# TODO: Fix this
+# Link: https://stackoverflow.com/questions/51028677/create-aws-ecr-repository-if-it-doesnt-exist
+# echo "Create AWS ECR repo for lambda (if not exists)"
+# aws ecr describe-repositories --repository-names ${AWS_ECR_REPO_NAME} \
+#     || aws ecr create-repository --repository-name ${AWS_ECR_REPO_NAME}
+# exit 0
 
 repo_info=$( aws ecr describe-repositories --repository-names $AWS_ECR_REPO_NAME | jq -r '.repositories[0]' )
 
-lambda_arn=$( echo "$repo_info" | jq -r '.repositoryArn' )  # e.g. arn:aws:ecr:us-east-1:795730031374:repository/ls-lambda
-lambda_uri=$( echo "$repo_info" | jq -r '.repositoryUri' )  # e.g. 795730031374.dkr.ecr.us-east-1.amazonaws.com/ls-lambda
-lambda_uri="795730031374.dkr.ecr.us-east-1.amazonaws.com"
+# Note:
+#   jq gives e.g. arn:aws:ecr:us-east-1:795730031374:repository/ls-lambda, so we strip the /ls-lambda
+lambda_arn=$( echo "$repo_info" | jq -r '.repositoryArn' | awk '{split($0,a,"/"); print a[1]}' )
+lambda_uri=$( echo "$repo_info" | jq -r '.repositoryUri' | awk '{split($0,a,"/"); print a[1]}' )  # e.g. 795730031374.dkr.ecr.us-east-1.amazonaws.com
 
 echo -e "${GREEN}Lambda ARN: ${YELLOW}$lambda_arn"
 echo -e "${GREEN}Lambda URI: ${YELLOW}$lambda_uri"
@@ -50,7 +75,7 @@ Syntax:
             - runs it
             - tests with curl
 
-        build-and-deploy staging|production
+        deploy staging|production
             - builds image
             - runs it
             - tests with curl
@@ -77,8 +102,8 @@ EOF
     elif [ $cmd = "build" ]; then
         build
 
-    elif [ $cmd = "build-and-deploy" ]; then
-        build_and_deploy
+    elif [ $cmd = "deploy" ]; then
+        deploy
 
     else
         red "Unknown command. 'magic.sh help' for available commands."
@@ -90,16 +115,6 @@ EOF
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 # Color helper functions
-
-# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-PURPLE='\033[0;35m'
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-
-BOLD='\033[1m'
-RESET='\033[0m'  # No Color
 
 red() {
     echo -e "\n${RED}$1${RESET}"
@@ -190,17 +205,6 @@ build() {
     docker container inspect $DOCKER_RUNNING_CONTAINER_NAME >/dev/null \
         && 🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
 
-    # purple "Running Docker image in bg"
-    # 🌷 docker run -p 9000:8080 $DOCKER_IMAGE_TAG:latest &
-
-    # purple "Running Docker image in daemon mode"
-    # 🌷 docker run \
-    #     -d \
-    #     -e AWS_LAMBDA_RUNTIME_API=1 \
-    #     --name $DOCKER_RUNNING_CONTAINER_NAME \
-    #     -p 9000:8080 \
-    #     $DOCKER_IMAGE_TAG:latest
-
     purple "Running Docker image in daemon mode"
     🌷 docker run -d \
         -v ~/.aws-lambda-rie:/aws-lambda \
@@ -231,10 +235,21 @@ deploy() {
             --password-stdin \
             $lambda_uri
 
-    🌷 docker push $lambda_uri/${AWS_ECR_REPO_NAME}:latest
+    full_url=$lambda_uri/${AWS_ECR_REPO_NAME}:latest
+        🌷 docker push $full_url
 
-    # TODO: Fix this:
-    # aws lambda invoke --function-name lambda_to_pdf_converter --payload '{"filename":"test-template.docx"}' output.txt && cat output.txt
+    🌷 aws lambda create-function  \
+        --function-name $AWS_LAMBDAFUNC_NAME \
+        --role $role_arn \
+        --code ImageUri=$full_url \
+        --package-type Image
+
+    🌷 sleep 5
+
+    # this works
+    🌷 aws lambda invoke --function-name $AWS_LAMBDAFUNC_NAME output.txt
+    🌷 cat output.txt
+    rm output.txt
 }
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
