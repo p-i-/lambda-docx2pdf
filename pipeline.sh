@@ -28,7 +28,7 @@ yellow() { echo -e   "${YELLOW}$1${RESET}" ; }
     echo -en ${RESET}
     "$@"
 }
-
+#+919028681113 Kiran
 # - - - - - - -
 
 assert_exists () {
@@ -176,13 +176,14 @@ build() {
     purple "Building Docker image"
     🌷 docker build -t $DOCKER_IMAGE_TAG .  # --no-cache
 
+    # docker tag SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
     purple "Tagging Docker image"
     🌷 docker tag $DOCKER_IMAGE_TAG:latest \
         ${lambda_uri}/${AWS_ECR_REPO_NAME}:latest
 
-    # remove if running container exists
-    docker container inspect $DOCKER_RUNNING_CONTAINER_NAME >/dev/null \
-        && 🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
+    # purple "remove if running container exists (safe to ignore error, it means local container not found"
+    # docker container inspect $DOCKER_RUNNING_CONTAINER_NAME 2>&1 >/dev/null \
+    #     && 🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
 
     purple "Running Docker image in daemon mode"
     🌷 docker run -d \
