@@ -1,16 +1,54 @@
 #!/bin/bash
 
-# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-PURPLE='\033[0;35m'
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+#  H E L P E R S
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
+# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+PURPLE='\033[0;35m'
+YELLOW='\033[1;33m'
 BOLD='\033[1m'
-RESET='\033[0m'  # No Color
+RESET='\033[0m'
+
+# Color helper functions
+red()    { echo -e "\n${RED}$1${RESET}"    ; }
+blue()   { echo -e   "${BLUE}$1${RESET}"   ; }
+green()  { echo -e   "${GREEN}$1${RESET}"  ; }
+purple() { echo -e "\n${PURPLE}$1${RESET}" ; }
+yellow() { echo -e   "${YELLOW}$1${RESET}" ; }
 
 # - - - - - - -
+
+🌷() {
+    echo -en ${YELLOW}
+    printf '\n🌷 %s\n' "$*"  # >&2 makes pipes work, even tho' they don't print properly
+    echo -en ${RESET}
+    "$@"
+}
+
+# - - - - - - -
+
+assert_exists () {
+    if hash $1 2>/dev/null; then
+        green "$1 exists"
+    else
+        red "Fatal Error: $1 does not exist" >&2
+        exit 1
+    fi
+}
+
+check_cli_tools() {
+    purple "Checking CLI tools"
+
+    assert_exists docker
+    assert_exists aws
+    # assert_exists eksctl
+}
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 # change to script's containing folder, and store it
 cd `dirname "$0"`
@@ -31,25 +69,20 @@ echo "AWS_LAMBDA_NAME: $AWS_LAMBDA_NAME"
 echo "DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG"
 echo "DOCKER_RUNNING_CONTAINER_NAME: $DOCKER_RUNNING_CONTAINER_NAME"
 
-# TODO: Fix this
-role_arn=arn:aws:iam::795730031374:role/service-role/ls-lambda-role-ka10n7ab
-
-# TODO: Fix this
-# Link: https://stackoverflow.com/questions/51028677/create-aws-ecr-repository-if-it-doesnt-exist
-# echo "Create AWS ECR repo for lambda (if not exists)"
-# aws ecr describe-repositories --repository-names ${AWS_ECR_REPO_NAME} \
-#     || aws ecr create-repository --repository-name ${AWS_ECR_REPO_NAME}
-# exit 0
+if aws ecr describe-repositories --repository-names ${AWS_ECR_REPO_NAME} 1>/dev/null; then
+    green "Found AWS ECR repo: ${AWS_ECR_REPO_NAME}"
+else
+    purple "AWS ECR repo (${AWS_ECR_REPO_NAME}) not found, creating!"
+    🌷 aws ecr create-repository --repository-name ${AWS_ECR_REPO_NAME}
+fi
 
 repo_info=$( aws ecr describe-repositories --repository-names $AWS_ECR_REPO_NAME | jq -r '.repositories[0]' )
 
 # Note:
-#   jq gives e.g. arn:aws:ecr:us-east-1:795730031374:repository/ls-lambda, so we strip the /ls-lambda
-lambda_arn=$( echo "$repo_info" | jq -r '.repositoryArn' | awk '{split($0,a,"/"); print a[1]}' )
-lambda_uri=$( echo "$repo_info" | jq -r '.repositoryUri' | awk '{split($0,a,"/"); print a[1]}' )  # e.g. 795730031374.dkr.ecr.us-east-1.amazonaws.com
+#   .repositoryArn gives e.g. arn:aws:ecr:us-east-1:795730031374:repository/foo, so we strip the /foo
+lambda_uri=$( echo "$repo_info" | jq -r '.repositoryUri | split("/")[0]' )
 
-echo -e "${GREEN}Lambda ARN: ${YELLOW}$lambda_arn"
-echo -e "${GREEN}Lambda URI: ${YELLOW}$lambda_uri"
+echo -e "${GREEN}Lambda URI: ${YELLOW}$lambda_uri"  # e.g. 795730031374.dkr.ecr.us-east-1.amazonaws.com
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 #  S W I T C H B O A R D
@@ -108,60 +141,6 @@ EOF
     else
         red "Unknown command. 'magic.sh help' for available commands."
     fi
-}
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-#  H E L P E R S
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-
-# Color helper functions
-
-red() {
-    echo -e "\n${RED}$1${RESET}"
-}
-
-purple() {
-    echo -e "\n${PURPLE}$1${RESET}"
-}
-
-green() {
-    echo -e "${GREEN}$1${RESET}"
-}
-
-blue() {
-    echo -e "${BLUE}$1${RESET}"
-}
-
-yellow() {
-    echo -e "${YELLOW}$1${RESET}"
-}
-
-# - - - - - - -
-
-🌷() {
-    echo -en ${YELLOW}
-    printf '\n🌷 %s\n' "$*"  # >&2 makes pipes work, even tho' they don't print properly
-    echo -en ${RESET}
-    "$@"
-}
-
-# - - - - - - -
-
-assert_exists () {
-    if hash $1 2>/dev/null; then
-        green "$1 exists"
-    else
-        red "Fatal Error: $1 does not exist" >&2
-        exit 1
-    fi
-}
-
-check_cli_tools() {
-    purple "Checking CLI tools"
-
-    assert_exists docker
-    assert_exists aws
-    # assert_exists eksctl
 }
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -228,7 +207,11 @@ build() {
 deploy() {
     🌷 cd docker-image
 
-    yellow "🌷 aws ecr get-login-password | docker login --username AWS --password-stdin $lambda_uri"  # Can't mix 🌷 with pipes
+    # TODO: Fix this (currently fetching it from AWS)
+    role_arn=arn:aws:iam::795730031374:role/service-role/ls-lambda-role-ka10n7ab
+
+    # Can't mix 🌷 with pipes, so we print the command manually
+    yellow "🌷 aws ecr get-login-password | docker login --username AWS --password-stdin $lambda_uri"
     aws ecr get-login-password | \
         docker login \
             --username AWS \
@@ -236,19 +219,23 @@ deploy() {
             $lambda_uri
 
     full_url=$lambda_uri/${AWS_ECR_REPO_NAME}:latest
-        🌷 docker push $full_url
+
+    🌷 docker push $full_url
+
+    🌷 aws lambda delete-function  \
+        --function-name $AWS_LAMBDAFUNC_NAME
 
     🌷 aws lambda create-function  \
         --function-name $AWS_LAMBDAFUNC_NAME \
         --role $role_arn \
         --code ImageUri=$full_url \
-        --package-type Image
+        --package-type Image \
+        | cat  # avoid requiring user interaction for multipage output
 
-    🌷 sleep 5
+    🌷 sleep 30
 
-    # this works
     🌷 aws lambda invoke --function-name $AWS_LAMBDAFUNC_NAME output.txt
-    🌷 cat output.txt
+    green "$(cat output.txt)"
     rm output.txt
 }
 
