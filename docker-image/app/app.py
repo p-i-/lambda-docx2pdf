@@ -23,7 +23,7 @@ TMP_FOLDER = '/tmp'
 
 import stat
 def handler(event, context):
-    workdir = '/home/app'
+    workdir = '/tmp'
     files = ' '.join( os.listdir(workdir) )
 
     # on remote, fails for /home/app (FileNotFoundError), succeeds for /tmp
