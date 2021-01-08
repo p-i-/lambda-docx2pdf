@@ -62,6 +62,7 @@ def handler(event, context):
                         '--outdir', TMP_FOLDER,
                         src_filepath
                 ],
+                cwd=TMP_FOLDER,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 shell=False,
