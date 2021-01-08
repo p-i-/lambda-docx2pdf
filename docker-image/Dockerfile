@@ -7,8 +7,10 @@ ARG DISTRO_VERSION="3.12"
 
 
 # Stage 1 - bundle base image + runtime
-# Grab a fresh copy of the image and install GCC
+
+# Grab a fresh copy of the image
 FROM python:${RUNTIME_VERSION}-alpine${DISTRO_VERSION} AS python-alpine
+
 # Install GCC (Alpine uses musl but we compile and link dependencies with GCC)
 RUN apk add --no-cache \
     libstdc++
@@ -53,6 +55,8 @@ RUN python${RUNTIME_VERSION} -m pip install awslambdaric --target ${FUNCTION_DIR
 # Grab a fresh copy of the Python image
 FROM python-alpine
 
+ARG FUNCTION_DIR
+
 # install libreoffice (https://github.com/renothing/docker-libreoffice)
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
     && apk update \
@@ -60,14 +64,10 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
         openjdk8 \
         tzdata \
         libreoffice
+# ^ sed: can't create temp file '/etc/apk/repositoriesXXXXXX': Permission denied
 
-# Include global arg in this stage of the build
-ARG FUNCTION_DIR
-
-# Set working directory to function root directory
 WORKDIR ${FUNCTION_DIR}
 
-# Copy handler function
 COPY app/app.py app.py
 
 # Sequencing is important here
@@ -87,6 +87,17 @@ COPY entry.sh /
 RUN chmod u+x /entry.sh
 
 COPY test-template.docx /tmp/
+
+# # Create a group and user (https://stackoverflow.com/questions/49955097/how-do-i-add-a-user-when-im-using-alpine-as-a-base-image)
+# RUN addgroup --system worker_group \
+#     && adduser \
+#         --disabled-password \
+#         --system \
+#         --ingroup worker_group \
+#         --home ${FUNCTION_DIR} \
+#         app
+# USER worker
+# ^ this fails
 
 ENTRYPOINT [ "/entry.sh" ]
 
