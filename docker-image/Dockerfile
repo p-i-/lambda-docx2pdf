@@ -42,6 +42,7 @@ ARG RUNTIME_VERSION
 
 # Create function directory
 RUN mkdir -p ${FUNCTION_DIR}
+RUN chmod a+rwx ${FUNCTION_DIR}
 
 # Optional – Install the function's dependencies
 # RUN python${RUNTIME_VERSION} -m pip install -r requirements.txt --target ${FUNCTION_DIR}

@@ -21,11 +21,32 @@ TMP_FOLDER = '/tmp'
 # def handler(event, context): 
 #     return f'Hello from AWS Lambda using Python {platform.python_version()}, Event data: {json.dumps(event)}'
 
+import stat
 def handler(event, context):
-    with open('/home/app/output_and_error_file', 'r') as file:
-        data = file.read()
+    workdir = '/home/app'
+    files = ' '.join( os.listdir(workdir) )
 
-    return { "response" : data }
+    # on remote, fails for /home/app (FileNotFoundError), succeeds for /tmp
+    perms = str( oct(stat.S_IMODE(os.stat(f'{workdir}/output_and_error_file').st_mode)) )
+
+    error = None
+    try:
+        # on remote, fails for /home/app (FileNotFoundError), succeeds for /tmp
+        with open(f'{workdir}/output_and_error_file', 'r') as file:
+            data = file.read()
+    except FileNotFoundError as e:
+        error = e
+    except:
+        error = "Unknown error"
+
+    return {
+        f'files in {workdir}/' : files,
+        f'{workdir}/output_and_error_file' : data,
+        'perms' : perms,
+        'error' : error
+    }
+
+    # - - - - - - -
 
     src_filename = event['filename']
 
