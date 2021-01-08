@@ -34,10 +34,6 @@ def handler(event, context):
     # Download object to be converted from s3 to TMP_FOLDER
     # with open(src_filepath, 'wb') as data:
     #     s3_bucket.download_fileobj(src_s3, data)
-    # src_filepath is /tmp/test-template.docx
-
-    # TODO: Revert to S3, once tests ok
-    shutil.copyfile('/home/app/test-template.docx', '/tmp/test-template.docx')
 
     print( subprocess.check_output(['ls', '-l', '/tmp'] ) )
     print( LIBRE_BINARY )

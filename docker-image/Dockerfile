@@ -86,13 +86,7 @@ COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
 COPY entry.sh /
 RUN chmod u+x /entry.sh
 
-# COPY lo.tar.br ./
-# RUN brotli --decompress lo.tar.br
-# RUN mkdir instdir
-# RUN tar -xf lo.tar
-# # ^ lo.tar unpacks to instdir/
-
-COPY test-template.docx ./
+COPY test-template.docx /tmp/
 
 ENTRYPOINT [ "/entry.sh" ]
 
