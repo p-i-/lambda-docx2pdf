@@ -16,38 +16,7 @@ TMP_FOLDER = '/tmp'
 
 # # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-# import json
-# import platform
-# def handler(event, context): 
-#     return f'Hello from AWS Lambda using Python {platform.python_version()}, Event data: {json.dumps(event)}'
-
-import stat
 def handler(event, context):
-    workdir = '/tmp'
-    files = ' '.join( os.listdir(workdir) )
-
-    # on remote, fails for /home/app (FileNotFoundError), succeeds for /tmp
-    perms = str( oct(stat.S_IMODE(os.stat(f'{workdir}/output_and_error_file').st_mode)) )
-
-    error = None
-    try:
-        # on remote, fails for /home/app (FileNotFoundError), succeeds for /tmp
-        with open(f'{workdir}/output_and_error_file', 'r') as file:
-            data = file.read()
-    except FileNotFoundError as e:
-        error = e
-    except:
-        error = "Unknown error"
-
-    return {
-        f'files in {workdir}/' : files,
-        f'{workdir}/output_and_error_file' : data,
-        'perms' : perms,
-        'error' : error
-    }
-
-    # - - - - - - -
-
     src_filename = event['filename']
 
     filename_body, _ = os.path.splitext(src_filename)
@@ -114,14 +83,14 @@ def handler(event, context):
 
         print( f"Conversion result: {result.stdout}" )
 
-        try:
-            with open(local_pdf_filepath, 'rb') as f:
-                # Save the converted object to S3
-                print('Saving converted file to S3')
-                # s3_bucket.put_object(Key=dst_s3_key, Body=f, ACL='public-read')
-        except:
-            print( f'Unknown error with saving to S3: {sys.exc_info()[0]}' )
-            continue
+        # try:
+        #     with open(local_pdf_filepath, 'rb') as f:
+        #         # Save the converted object to S3
+        #         print('Saving converted file to S3')
+        #         s3_bucket.put_object(Key=dst_s3_key, Body=f, ACL='public-read')
+        # except:
+        #     print( f'Unknown error with saving to S3: {sys.exc_info()[0]}' )
+        #     continue
 
         print('Completed!')
         success = True
@@ -130,39 +99,3 @@ def handler(event, context):
     return { 'Response' : 'Success' if success else 'Fail' }
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-# For local dev, create this file (empty is ok)
-# LOCAL_DEV = os.path.isfile('.localdev')
-
-# if LOCAL_DEV:
-#     LIBRE_TARFILE = 'lo.tar.br'
-#     TMP_FOLDER = './tmp'  # to avoid problem with write-perms outside of project root
-#     LIBRE_BINARY = '/Applications/LibreOffice.app/Contents/MacOS/soffice'  # Need to install LibreOffice on macOS
-
-#     # (re)create empty TMP_FOLDER
-#     if os.path.exists(TMP_FOLDER):
-#         shutil.rmtree(TMP_FOLDER)
-#     os.makdirs(TMP_FOLDER+'/')  # https://stackoverflow.com/questions/6692678/python-mkdir-to-make-folder-with-subfolder
-# else:
-    # LIBRE_TARFILE = '/opt/lo.tar.br'
-    # LIBRE_BINARY = '/tmp/instdir/program/soffice.bin'
-
-# LIBRE_TARFILE = '/opt/lo.tar.br'
-# LIBRE_BINARY = '/tmp/instdir/program/soffice.bin'
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-# Unpack LibreOffice binary into temp folder
-# def cold_start():
-#     with open(LIBRE_TARFILE, 'rb') as f:
-#         read_file = f.read()
-#         data = brotli.decompress(read_file)
-#         with open(f'{TMP_FOLDER}/lo.tar', 'wb+') as write_file:
-#             tar = tarfile.open(fileobj = BytesIO(data))
-#             for g in tar:
-#                 print(f'Extracting file: {g.name}')
-#                 tar.extract(g.name, path=f'{TMP_FOLDER}/')
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-# cold_start()
