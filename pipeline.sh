@@ -24,7 +24,7 @@ yellow() { echo -e   "${YELLOW}$1${RESET}" ; }
 
 🌷() {
     echo -en ${YELLOW}
-    printf '\n🌷 %s\n' "$*"  # >&2 makes pipes work, even tho' they don't print properly
+    printf '🌷 %s\n' "$*"  # >&2 makes pipes work, even tho' they don't print properly
     echo -en ${RESET}
     "$@"
 }
@@ -174,7 +174,8 @@ build() {
     cd docker-image
 
     purple "Building Docker image"
-    🌷 docker build -t $DOCKER_IMAGE_TAG .  # --no-cache
+    🌷 docker build -t $DOCKER_IMAGE_TAG .
+    # 🌷 docker build -t $DOCKER_IMAGE_TAG --no-cache .
 
     # docker tag SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
     purple "Tagging Docker image"
@@ -182,8 +183,9 @@ build() {
         ${lambda_uri}/${AWS_ECR_REPO_NAME}:latest
 
     # purple "remove if running container exists (safe to ignore error, it means local container not found"
-    # docker container inspect $DOCKER_RUNNING_CONTAINER_NAME 2>&1 >/dev/null \
-    #     && 🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
+    docker container inspect $DOCKER_RUNNING_CONTAINER_NAME 2>&1 >/dev/null \
+        && 🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
+    # ^ We do this in case a previous build failed to complete, leaving a dangling running container
 
     purple "Running Docker image in daemon mode"
     🌷 docker run -d \
@@ -194,11 +196,13 @@ build() {
         $DOCKER_IMAGE_TAG:latest \
             /entry.sh app.handler
 
-    🌷 sleep 5
+    🌷 sleep 10
 
     purple "Testing endpoint"
-    🌷 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
+    🌷 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+        -d '{"filename" : "test-template.docx"}'
 
+    echo
     purple "Deleting local Docker container instance"
     🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
 }
@@ -206,7 +210,7 @@ build() {
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 deploy() {
-    🌷 cd docker-image
+    # 🌷 cd docker-image
 
     # TODO: Fix this (currently fetching it from AWS)
     role_arn=arn:aws:iam::795730031374:role/service-role/ls-lambda-role-ka10n7ab
@@ -231,12 +235,32 @@ deploy() {
         --role $role_arn \
         --code ImageUri=$full_url \
         --package-type Image \
+        --memory-size 8192 \
+        --timeout 300 \
+        --publish \
         | cat  # avoid requiring user interaction for multipage output
 
     🌷 sleep 30
 
-    🌷 aws lambda invoke --function-name $AWS_LAMBDAFUNC_NAME output.txt
-    green "$(cat output.txt)"
+    # 🌷 aws lambda invoke \
+    #     --function-name $AWS_LAMBDAFUNC_NAME \
+    #     output.txt
+
+    # green "$(cat output.txt)"
+    # rm output.txt
+
+    # 🌷 aws lambda invoke \
+    #     --function-name $AWS_LAMBDAFUNC_NAME \
+    #     --payload '{"filename" : "test-template.docx"}' \
+    #     output.txt
+
+    🌷 aws lambda invoke \
+        --function-name $AWS_LAMBDAFUNC_NAME \
+        --payload fileb://invoke-payload.json \
+        output.txt
+
+    echo "$(cat output.txt)"
+    cat output.txt | jq
     rm output.txt
 }
 

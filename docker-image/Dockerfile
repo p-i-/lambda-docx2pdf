@@ -20,6 +20,9 @@ RUN apk add --no-cache \
     musl-dev \
     openssl-dev
 
+RUN apk add --no-cache \
+    brotli
+
 # Stage 2 - build function and dependencies
 FROM python-alpine AS build-image
 # Install aws-lambda-cpp build dependencies
@@ -45,10 +48,17 @@ RUN mkdir -p ${FUNCTION_DIR}
 # Install Lambda Runtime Interface Client for Python
 RUN python${RUNTIME_VERSION} -m pip install awslambdaric --target ${FUNCTION_DIR}
 
-
 # Stage 3 - final runtime image
 # Grab a fresh copy of the Python image
 FROM python-alpine
+
+# install libreoffice (https://github.com/renothing/docker-libreoffice)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+    && apk update \
+    && apk add --no-cache \
+        openjdk8 \
+        tzdata \
+        libreoffice
 
 # Include global arg in this stage of the build
 ARG FUNCTION_DIR
@@ -74,6 +84,14 @@ COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
 
 COPY entry.sh /
 RUN chmod u+x /entry.sh
+
+# COPY lo.tar.br ./
+# RUN brotli --decompress lo.tar.br
+# RUN mkdir instdir
+# RUN tar -xf lo.tar
+# # ^ lo.tar unpacks to instdir/
+
+COPY test-template.docx ./
 
 ENTRYPOINT [ "/entry.sh" ]
 

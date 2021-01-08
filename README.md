@@ -69,3 +69,6 @@ aws lambda create-function \
     --handler my-function.handler \
 ```
 "repositoryArn": "arn:aws:ecr:us-east-1:795730031374:repository/ls-lambda",
+
+
+https://medium.com/clog/ssh-ing-into-your-aws-lambda-functions-c940cebf7646
