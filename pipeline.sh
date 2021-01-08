@@ -202,8 +202,11 @@ build() {
     🌷 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
         -d '{"filename" : "test-template.docx"}'
 
-    echo
-    purple "Deleting local Docker container instance"
+    purple "Fetching log"
+    🌷 docker logs $DOCKER_IMAGE_TAG
+
+    purple "Deleting local Docker container instance. ENTER to do it, CTRL+c to quit"
+    head -n 1 >/dev/null
     🌷 docker rm -f $DOCKER_RUNNING_CONTAINER_NAME
 }
 
